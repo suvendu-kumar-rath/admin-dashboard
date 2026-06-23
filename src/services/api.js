@@ -113,3 +113,97 @@ export const authenticatedFetch = async (endpoint, options = {}) => {
 
   return response.json();
 };
+
+/**
+ * Get all editors
+ * @returns {Promise<{success, data: {editors, total, page, pages}}>} Response with editors list
+ */
+export const getEditors = async () => {
+  try {
+    console.log('📋 Fetching editors...');
+    
+    const data = await authenticatedFetch('/editors', {
+      method: 'GET',
+    });
+
+    console.log('✅ Editors fetched successfully');
+    return data; // { success, data: { editors, total, page, pages }, ... }
+  } catch (error) {
+    console.error('❌ Error fetching editors:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a new editor
+ * @param {object} editorData - Editor data
+ * @param {string} editorData.name - Editor name
+ * @param {string} editorData.email - Editor email
+ * @param {string} editorData.phone - Editor phone
+ * @param {boolean} editorData.isActive - Is editor active
+ * @returns {Promise<{success, editor}>} Response with created editor
+ */
+export const addEditor = async (editorData) => {
+  try {
+    console.log(`📝 Adding editor: ${editorData.name}`);
+    
+    const data = await authenticatedFetch('/editors', {
+      method: 'POST',
+      body: JSON.stringify(editorData),
+    });
+
+    console.log('✅ Editor added successfully');
+    return data; // { success, editor, ... }
+  } catch (error) {
+    console.error('❌ Error adding editor:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an editor by ID
+ * @param {number} id - Editor ID
+ * @param {object} editorData - Editor data to update
+ * @param {string} editorData.name - Editor name
+ * @param {string} editorData.email - Editor email
+ * @param {string} editorData.phone - Editor phone
+ * @param {boolean} editorData.isActive - Is editor active
+ * @returns {Promise<{success, editor}>} Response with updated editor
+ */
+export const updateEditor = async (id, editorData) => {
+  try {
+    console.log(`✏️ Updating editor ID: ${id}`);
+    
+    const data = await authenticatedFetch(`/editors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(editorData),
+    });
+
+    console.log('✅ Editor updated successfully');
+    return data; // { success, editor, ... }
+  } catch (error) {
+    console.error('❌ Error updating editor:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an editor by ID
+ * @param {number} id - Editor ID
+ * @returns {Promise<{success}>} Response confirming deletion
+ */
+export const deleteEditor = async (id) => {
+  try {
+    console.log(`🗑️ Deleting editor ID: ${id}`);
+    
+    const data = await authenticatedFetch(`/editors/${id}`, {
+      method: 'DELETE',
+    });
+
+    console.log('✅ Editor deleted successfully');
+    return data; // { success, ... }
+  } catch (error) {
+    console.error('❌ Error deleting editor:', error);
+    throw error;
+  }
+};

@@ -1,47 +1,113 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { MainLayout } from "../layouts/MainLayout";
 import { Button, Table, Modal } from "../components";
-import { editorsData } from "../data/mockData";
+import { getEditors, addEditor, updateEditor, deleteEditor } from "../services/api";
 
 export const EditorsPage = () => {
-  const [editors, setEditors] = useState(editorsData);
+  const [editors, setEditors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: "", email: "", password: "", phone: "" });
 
+  // Fetch editors on component mount
+  useEffect(() => {
+    fetchEditorsList();
+  }, []);
+
+  const fetchEditorsList = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getEditors();
+      setEditors(response.data.editors);
+    } catch (err) {
+      setError(err.message);
+      console.error("Failed to fetch editors:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAddEditor = () => {
+    setEditingId(null);
     setFormData({ name: "", email: "", password: "", phone: "" });
     setIsModalOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (formData.name && formData.email && formData.password && formData.phone) {
-      const newEditor = {
-        id: editors.length + 1,
-        ...formData,
-      };
-      setEditors([...editors, newEditor]);
-      setIsModalOpen(false);
-      setFormData({ name: "", email: "", password: "", phone: "" });
+  const handleEditEditor = (editor) => {
+    setEditingId(editor.id);
+    setFormData({
+      name: editor.name,
+      email: editor.email,
+      password: "", // Password field typically not shown for editing
+      phone: editor.phone,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (formData.name && formData.email && formData.phone) {
+      try {
+        if (editingId) {
+          // Update existing editor
+          await updateEditor(editingId, formData);
+          console.log("✅ Editor updated");
+        } else {
+          // Add new editor
+          if (!formData.password) {
+            alert("Password is required for new editors");
+            return;
+          }
+          await addEditor(formData);
+          console.log("✅ Editor added");
+        }
+        setIsModalOpen(false);
+        setEditingId(null);
+        setFormData({ name: "", email: "", password: "", phone: "" });
+        // Refresh editors list
+        await fetchEditorsList();
+      } catch (err) {
+        setError(err.message);
+        console.error("Failed to save editor:", err);
+      }
     }
   };
 
-  const handleDelete = (id) => {
-    setEditors(editors.filter((editor) => editor.id !== id));
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this editor?")) {
+      try {
+        await deleteEditor(id);
+        console.log("✅ Editor deleted");
+        // Refresh editors list after deletion
+        await fetchEditorsList();
+      } catch (err) {
+        setError(err.message);
+        console.error("Failed to delete editor:", err);
+      }
+    }
   };
 
-  const columns = ["Name", "Email", "Password", "Phone"];
+  const columns = ["Name", "Email", "Phone"];
 
   const tableData = editors.map((editor) => ({
+    id: editor.id,
     name: editor.name,
     email: editor.email,
-    password: editor.password,
     phone: editor.phone,
   }));
 
   const actions = (row) => (
     <>
-      <button className="text-accent-orange hover:text-orange-600 transition-colors">
+      <button 
+        onClick={() => {
+          const editor = editors.find((e) => e.email === row.email);
+          if (editor) handleEditEditor(editor);
+        }}
+        className="text-accent-orange hover:text-orange-600 transition-colors"
+      >
         <Edit size={18} />
       </button>
       <button
@@ -55,6 +121,26 @@ export const EditorsPage = () => {
       </button>
     </>
   );
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen">
+          <p className="text-lg text-gray-400">Loading editors...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen">
+          <p className="text-lg text-red-500">Error: {error}</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -81,7 +167,7 @@ export const EditorsPage = () => {
       {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        title="Add New Editor"
+        title={editingId ? "Edit Editor" : "Add New Editor"}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleSubmit}
       >
@@ -100,13 +186,15 @@ export const EditorsPage = () => {
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
-          />
+          {!editingId && (
+            <input
+              type="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
+            />
+          )}
           <input
             type="tel"
             placeholder="Phone Number"

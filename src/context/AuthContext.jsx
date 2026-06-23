@@ -1,12 +1,28 @@
-import { createContext, useContext, useState } from "react";
-import { loginUser, setAuthToken, clearAuthTokens } from "../services/api";
+import { createContext, useContext, useState, useEffect } from "react";
+import { loginUser, setAuthToken, clearAuthTokens, getAuthToken } from "../services/api";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Restore user session on app mount
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem("user");
+    const token = getAuthToken();
+    
+    if (storedUser && token) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (err) {
+        console.error("Failed to restore user session:", err);
+        clearAuthTokens();
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
   const login = async (email, password) => {
     setIsLoading(true);

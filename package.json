@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "gateway": "node gateway.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
