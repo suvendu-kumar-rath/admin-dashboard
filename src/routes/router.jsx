@@ -2,22 +2,44 @@ import { createBrowserRouter } from "react-router-dom";
 import { EditorsPage } from "../pages/EditorsPage";
 import { PostsPage } from "../pages/PostsPage";
 import { AdvertisementsPage } from "../pages/AdvertisementsPage";
+import { LoginPage } from "../pages/LoginPage";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
     path: "/",
-    element: <EditorsPage />,
+    element: (
+      <ProtectedRoute>
+        <EditorsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/editors",
-    element: <EditorsPage />,
+    element: (
+      <ProtectedRoute>
+        <EditorsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/posts",
-    element: <PostsPage />,
+    element: (
+      <ProtectedRoute>
+        <PostsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/advertisements",
-    element: <AdvertisementsPage />,
+    element: (
+      <ProtectedRoute>
+        <AdvertisementsPage />
+      </ProtectedRoute>
+    ),
   },
 ]);
