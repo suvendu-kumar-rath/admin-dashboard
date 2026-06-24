@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://ampercent.in";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://ampercent.in/api";
 
 /**
  * Login API call
@@ -204,6 +204,99 @@ export const deleteEditor = async (id) => {
     return data; // { success, ... }
   } catch (error) {
     console.error('❌ Error deleting editor:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all posts
+ * @returns {Promise<{success, data}>} Response with posts list
+ */
+export const getPosts = async () => {
+  try {
+    console.log('📋 Fetching posts...');
+    
+    const data = await authenticatedFetch('/posts', {
+      method: 'GET',
+    });
+
+    console.log('✅ Posts fetched successfully');
+    return data; // { success, data, ... }
+  } catch (error) {
+    console.error('❌ Error fetching posts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a new post
+ * @param {object} postData - Post data
+ * @param {string} postData.heading - Post heading/title
+ * @param {string} postData.matter - Post content
+ * @param {string} postData.category - Post category
+ * @param {string} postData.subcategory - Post subcategory
+ * @param {string} postData.images - Post images (JSON string)
+ * @param {boolean} postData.isTrending - Is post trending
+ * @param {string} postData.status - Post status (published, draft, etc.)
+ * @returns {Promise<{success, data: {id, heading, matter, category, subcategory, images, isTrending, status, authorId, createdAt, updatedAt, author}}>} Response with created post
+ */
+export const addPost = async (postData) => {
+  try {
+    console.log(`📝 Adding post: ${postData.heading}`);
+    
+    const data = await authenticatedFetch('/posts', {
+      method: 'POST',
+      body: JSON.stringify(postData),
+    });
+
+    console.log('✅ Post added successfully');
+    return data; // { success, data, ... }
+  } catch (error) {
+    console.error('❌ Error adding post:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update a post by ID
+ * @param {number} id - Post ID
+ * @param {object} postData - Post data to update
+ * @returns {Promise<{success, data}>} Response with updated post
+ */
+export const updatePost = async (id, postData) => {
+  try {
+    console.log(`✏️ Updating post ID: ${id}`);
+    
+    const data = await authenticatedFetch(`/posts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(postData),
+    });
+
+    console.log('✅ Post updated successfully');
+    return data; // { success, data, ... }
+  } catch (error) {
+    console.error('❌ Error updating post:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a post by ID
+ * @param {number} id - Post ID
+ * @returns {Promise<{success}>} Response confirming deletion
+ */
+export const deletePost = async (id) => {
+  try {
+    console.log(`🗑️ Deleting post ID: ${id}`);
+    
+    const data = await authenticatedFetch(`/posts/${id}`, {
+      method: 'DELETE',
+    });
+
+    console.log('✅ Post deleted successfully');
+    return data; // { success, ... }
+  } catch (error) {
+    console.error('❌ Error deleting post:', error);
     throw error;
   }
 };
