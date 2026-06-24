@@ -1,23 +1,22 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { MainLayout } from "../layouts/MainLayout";
-import { Button, Modal, StatusBadge } from "../components";
-import { addPost, getPosts, deletePost } from "../services/api";
+import { Button, Table, Modal, StatusBadge } from "../components";
+import { getPosts, addPost, updatePost, deletePost } from "../services/api";
 
 export const PostsPage = () => {
   const [posts, setPosts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editingPostId, setEditingPostId] = useState(null);
   const [formData, setFormData] = useState({
     heading: "",
     matter: "",
     category: "",
     subcategory: "",
-    images: "[]",
+    images: "",
     isTrending: false,
-    status: "published",
+    status: "draft",
   });
 
   // Fetch posts on component mount
@@ -27,108 +26,189 @@ export const PostsPage = () => {
 
   const fetchPostsData = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      console.log('📡 Fetching posts from backend...');
       const response = await getPosts();
-      if (response.success && response.data) {
-        setPosts(Array.isArray(response.data) ? response.data : [response.data]);
+      console.log('📥 Posts response:', response);
+      
+      // Handle different response formats
+      let postsArray = [];
+      if (response.success) {
+        // Check if data is an array or object with data property
+        if (Array.isArray(response.data)) {
+          postsArray = response.data;
+        } else if (response.data && Array.isArray(response.data.posts)) {
+          postsArray = response.data.posts;
+        } else if (response.data && typeof response.data === 'object') {
+          postsArray = [response.data];
+        }
+      } else if (Array.isArray(response)) {
+        postsArray = response;
       }
-    } catch (err) {
-      console.error("Error fetching posts:", err);
-      setError("Failed to fetch posts");
+      
+      console.log('✅ Loaded posts:', postsArray);
+      setPosts(postsArray);
+    } catch (error) {
+      console.error("❌ Error fetching posts:", error);
+      alert(`Failed to fetch posts: ${error.message}`);
+      setPosts([]); // Set empty array on error
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleAddPost = () => {
+    setEditingPostId(null);
     setFormData({
       heading: "",
       matter: "",
       category: "",
       subcategory: "",
-      images: "[]",
+      images: "",
       isTrending: false,
-      status: "published",
+      status: "draft",
     });
     setIsModalOpen(true);
-    setError(null);
-    setSuccess(null);
+  };
+
+  const handleEditPost = (post) => {
+    setEditingPostId(post.id);
+    setFormData({
+      heading: post.heading,
+      matter: post.matter,
+      category: post.category,
+      subcategory: post.subcategory || "",
+      images: post.images || "",
+      isTrending: post.isTrending || false,
+      status: post.status || "draft",
+    });
+    setIsModalOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!formData.heading || !formData.matter || !formData.category || !formData.subcategory) {
-      setError("Please fill in all required fields");
+    // Validate required fields
+    if (!formData.heading?.trim()) {
+      alert("Heading is required");
+      return;
+    }
+    
+    if (!formData.matter?.trim()) {
+      alert("Content (Matter) is required");
+      return;
+    }
+    
+    if (!formData.category?.trim()) {
+      alert("Category is required");
+      return;
+    }
+
+    // Validate heading length (backend validation)
+    if (formData.heading.trim().length < 5) {
+      alert("Heading must be at least 5 characters long");
+      return;
+    }
+
+    if (formData.heading.trim().length > 255) {
+      alert("Heading must be less than 255 characters");
       return;
     }
 
     try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      const response = await addPost({
-        heading: formData.heading,
-        matter: formData.matter,
-        category: formData.category,
-        subcategory: formData.subcategory,
-        images: formData.images,
-        isTrending: formData.isTrending,
-        status: formData.status,
-      });
-
-      if (response.success) {
-        setSuccess("Post created successfully!");
-        setPosts([...posts, response.data]);
-        setIsModalOpen(false);
-        setFormData({
-          heading: "",
-          matter: "",
-          category: "",
-          subcategory: "",
-          images: "[]",
-          isTrending: false,
-          status: "published",
-        });
+      setIsLoading(true);
+      
+      if (editingPostId) {
+        // Update existing post
+        console.log('📤 Updating post ID:', editingPostId);
+        console.log('📤 Post data being sent:', formData);
+        const response = await updatePost(editingPostId, formData);
         
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(null), 3000);
+        console.log('📥 Post update response:', response);
+        if (response.success) {
+          setIsModalOpen(false);
+          setEditingPostId(null);
+          setFormData({
+            heading: "",
+            matter: "",
+            category: "",
+            subcategory: "",
+            images: "",
+            isTrending: false,
+            status: "draft",
+          });
+          alert("Post updated successfully!");
+          await fetchPostsData();
+        }
+      } else {
+        // Create new post
+        console.log('📤 Creating post with data:', formData);
+        const response = await addPost(formData);
+        
+        console.log('📥 Post creation response:', response);
+        if (response.success) {
+          setIsModalOpen(false);
+          setFormData({
+            heading: "",
+            matter: "",
+            category: "",
+            subcategory: "",
+            images: "",
+            isTrending: false,
+            status: "draft",
+          });
+          alert("Post created successfully!");
+          await fetchPostsData();
+        }
       }
-    } catch (err) {
-      console.error("Error adding post:", err);
-      setError(err.message || "Failed to create post");
+    } catch (error) {
+      console.error("❌ Error:", error);
+      alert(`Failed to ${editingPostId ? "update" : "create"} post: ${error.message}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    if (!confirm("Are you sure you want to delete this post?")) return;
 
     try {
-      setLoading(true);
+      setIsLoading(true);
+      console.log('🗑️ Deleting post ID:', id);
       const response = await deletePost(id);
+      
+      console.log('📥 Delete response:', response);
       if (response.success) {
-        setPosts(posts.filter((post) => post.id !== id));
-        setSuccess("Post deleted successfully!");
-        setTimeout(() => setSuccess(null), 3000);
+        alert("Post deleted successfully!");
+        // Refresh posts from backend to ensure data persistence
+        await fetchPostsData();
       }
-    } catch (err) {
-      console.error("Error deleting post:", err);
-      setError("Failed to delete post");
+    } catch (error) {
+      console.error("❌ Error deleting post:", error);
+      alert(`Failed to delete post: ${error.message}`);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const columns = ["Heading", "Category", "Status"];
+  const columns = ["Heading", "Category", "Status", "Trending"];
 
-  const actions = (post) => (
+  const tableData = posts.map((post) => ({
+    heading: post.heading,
+    category: post.category,
+    status: post.status,
+    isTrending: post.isTrending ? "Yes" : "No",
+    post,
+  }));
+
+  const actions = (row) => (
     <>
       <button className="text-accent-orange hover:text-orange-600 transition-colors">
         <Edit size={18} />
       </button>
       <button
-        onClick={() => handleDelete(post.id)}
+        onClick={() => {
+          const post = posts.find((p) => p.id === row.post.id);
+          if (post) handleDelete(post.id);
+        }}
         className="text-red-500 hover:text-red-600 transition-colors"
       >
         <Trash2 size={18} />
@@ -145,175 +225,207 @@ export const PostsPage = () => {
           <Button
             variant="primary"
             onClick={handleAddPost}
-            disabled={loading}
             className="gap-2"
+            disabled={isLoading}
           >
             <Plus size={20} />
             New Post
           </Button>
         </div>
 
-        {/* Alert Messages */}
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="bg-green-500/20 border border-green-500 text-green-200 px-4 py-3 rounded-lg">
-            {success}
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-orange"></div>
           </div>
         )}
 
         {/* Table */}
-        <div className="bg-bg-tertiary rounded-lg border border-gray-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-700">
-                  {columns.map((column) => (
-                    <th
-                      key={column}
-                      className="px-6 py-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider"
-                    >
-                      {column}
-                    </th>
-                  ))}
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length + 1} className="px-6 py-4 text-center text-gray-400">
-                      No posts found
-                    </td>
-                  </tr>
-                ) : (
-                  posts.map((post) => (
-                    <tr
-                      key={post.id}
-                      className="border-b border-gray-700 hover:bg-black/30 transition-colors"
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-300">{post.heading}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300">{post.category}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <StatusBadge status={post.status} />
-                      </td>
-                      <td className="px-6 py-4 text-sm flex gap-2">
-                        {actions(post)}
-                      </td>
+        {!isLoading && (
+          <div className="bg-bg-tertiary rounded-lg border border-gray-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              {posts.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  No posts yet. Create your first post!
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-700">
+                      {columns.map((column) => (
+                        <th
+                          key={column}
+                          className="px-6 py-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider"
+                        >
+                          {column}
+                        </th>
+                      ))}
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {posts.map((post) => (
+                      <tr
+                        key={post.id}
+                        className="border-b border-gray-700 hover:bg-black/30 transition-colors"
+                      >
+                        <td className="px-6 py-4 text-sm text-gray-300">{post.heading}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300">{post.category}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <StatusBadge status={post.status} />
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-300">
+                          {post.isTrending ? "Yes" : "No"}
+                        </td>
+                        <td className="px-6 py-4 text-sm flex gap-2">
+                          <button 
+                            onClick={() => handleEditPost(post)}
+                            className="text-accent-orange hover:text-orange-600 transition-colors"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(post.id)}
+                            className="text-red-500 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        title="Add New Post"
-        onClose={() => setIsModalOpen(false)}
+        title={editingPostId ? "Edit Post" : "Add New Post"}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingPostId(null);
+        }}
         onSubmit={handleSubmit}
       >
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-4 max-h-96 overflow-y-auto">
           <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Heading *
             </label>
             <input
               type="text"
               placeholder="Post heading"
               value={formData.heading}
-              onChange={(e) => setFormData({ ...formData, heading: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, heading: e.target.value })
+              }
               className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Content (Matter) *
             </label>
             <textarea
               placeholder="Post content"
               value={formData.matter}
-              onChange={(e) => setFormData({ ...formData, matter: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, matter: e.target.value })
+              }
               rows="4"
-              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none resize-none"
+              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Category *
               </label>
               <input
                 type="text"
                 placeholder="e.g., technology"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300 block mb-1">
-                Subcategory *
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Subcategory
               </label>
               <input
                 type="text"
                 placeholder="e.g., ai"
                 value={formData.subcategory}
-                onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, subcategory: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1">
-              Status
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Images (URL)
             </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
-            >
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3">
             <input
-              type="checkbox"
-              id="isTrending"
-              checked={formData.isTrending}
-              onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-700 bg-bg-secondary cursor-pointer"
+              type="text"
+              placeholder="Comma-separated image URLs"
+              value={formData.images}
+              onChange={(e) =>
+                setFormData({ ...formData, images: e.target.value })
+              }
+              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
             />
-            <label htmlFor="isTrending" className="text-sm font-medium text-gray-300 cursor-pointer">
-              Mark as Trending
-            </label>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-300 block mb-1">
-              Images (JSON format)
-            </label>
-            <textarea
-              placeholder='["image1.jpg", "image2.jpg"]'
-              value={formData.images}
-              onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-              rows="2"
-              className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none resize-none"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
+                className="w-full px-4 py-2 bg-bg-secondary text-white rounded-lg border border-gray-700 focus:border-accent-orange focus:outline-none"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Trending
+              </label>
+              <div className="flex items-center h-10">
+                <input
+                  type="checkbox"
+                  checked={formData.isTrending}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isTrending: e.target.checked })
+                  }
+                  className="w-4 h-4 rounded border-gray-700 text-accent-orange focus:ring-accent-orange"
+                />
+                <span className="ml-2 text-sm text-gray-300">
+                  Mark as trending
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

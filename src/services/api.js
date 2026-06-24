@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://ampercent.in/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://ampercent.in";
+
 
 /**
  * Login API call
@@ -108,7 +109,22 @@ export const authenticatedFetch = async (endpoint, options = {}) => {
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    let errorMessage = `API error: ${response.status}`;
+    
+    try {
+      const errorData = await response.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      console.error('🚫 Server error response:', errorData);
+    } catch {
+      const text = await response.text();
+      console.error('🚫 Server error (non-JSON):', text.substring(0, 500));
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -214,14 +230,14 @@ export const deleteEditor = async (id) => {
  */
 export const getPosts = async () => {
   try {
-    console.log('📋 Fetching posts...');
+    console.log('📰 Fetching posts from API...');
     
     const data = await authenticatedFetch('/posts', {
       method: 'GET',
     });
 
-    console.log('✅ Posts fetched successfully');
-    return data; // { success, data, ... }
+    console.log('✅ Posts fetched successfully:', data);
+    return data;
   } catch (error) {
     console.error('❌ Error fetching posts:', error);
     throw error;
@@ -235,14 +251,15 @@ export const getPosts = async () => {
  * @param {string} postData.matter - Post content
  * @param {string} postData.category - Post category
  * @param {string} postData.subcategory - Post subcategory
- * @param {string} postData.images - Post images (JSON string)
+ * @param {string} postData.images - Post images (comma-separated)
  * @param {boolean} postData.isTrending - Is post trending
- * @param {string} postData.status - Post status (published, draft, etc.)
- * @returns {Promise<{success, data: {id, heading, matter, category, subcategory, images, isTrending, status, authorId, createdAt, updatedAt, author}}>} Response with created post
+ * @param {string} postData.status - Post status (published/draft)
+ * @returns {Promise<{success, data}>} Response with created post
  */
 export const addPost = async (postData) => {
   try {
     console.log(`📝 Adding post: ${postData.heading}`);
+    console.log('📤 Post data being sent:', postData);
     
     const data = await authenticatedFetch('/posts', {
       method: 'POST',
@@ -250,7 +267,8 @@ export const addPost = async (postData) => {
     });
 
     console.log('✅ Post added successfully');
-    return data; // { success, data, ... }
+    console.log('📥 Response:', data);
+    return data;
   } catch (error) {
     console.error('❌ Error adding post:', error);
     throw error;
@@ -266,6 +284,7 @@ export const addPost = async (postData) => {
 export const updatePost = async (id, postData) => {
   try {
     console.log(`✏️ Updating post ID: ${id}`);
+    console.log('📤 Post data being sent:', postData);
     
     const data = await authenticatedFetch(`/posts/${id}`, {
       method: 'PUT',
@@ -273,7 +292,8 @@ export const updatePost = async (id, postData) => {
     });
 
     console.log('✅ Post updated successfully');
-    return data; // { success, data, ... }
+    console.log('📥 Response:', data);
+    return data;
   } catch (error) {
     console.error('❌ Error updating post:', error);
     throw error;
@@ -288,13 +308,15 @@ export const updatePost = async (id, postData) => {
 export const deletePost = async (id) => {
   try {
     console.log(`🗑️ Deleting post ID: ${id}`);
+    console.log(`📍 Endpoint: /posts/${id}`);
     
     const data = await authenticatedFetch(`/posts/${id}`, {
       method: 'DELETE',
     });
 
     console.log('✅ Post deleted successfully');
-    return data; // { success, ... }
+    console.log('📥 Response:', data);
+    return data;
   } catch (error) {
     console.error('❌ Error deleting post:', error);
     throw error;
