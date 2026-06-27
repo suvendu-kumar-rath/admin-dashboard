@@ -95,9 +95,12 @@ export const clearAuthTokens = () => {
 export const authenticatedFetch = async (endpoint, options = {}) => {
   const token = getAuthToken();
   const headers = {
-    "Content-Type": "application/json",
     ...options.headers,
   };
+
+  if (!(options.body instanceof FormData) && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -319,6 +322,87 @@ export const deletePost = async (id) => {
     return data;
   } catch (error) {
     console.error('❌ Error deleting post:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all advertisements
+ * @returns {Promise<{success, data}>} Response with advertisements list
+ */
+export const getAdvertisements = async () => {
+  try {
+    console.log('📋 Fetching advertisements...');
+    const data = await authenticatedFetch('/advertisements', {
+      method: 'GET',
+    });
+    console.log('✅ Advertisements fetched successfully', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error fetching advertisements:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add a new advertisement
+ * @param {object} adData - Advertisement data
+ * @param {string} adData.title - Ad title
+ * @param {string} adData.link - Ad link
+ * @param {string} adData.status - Ad status
+ * @returns {Promise<{success, data}>} Response with created advertisement
+ */
+export const addAdvertisement = async (adData) => {
+  try {
+    console.log('📝 Adding advertisement:', adData);
+    const data = await authenticatedFetch('/advertisements', {
+      method: 'POST',
+      body: adData,
+    });
+    console.log('✅ Advertisement added successfully', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error adding advertisement:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an advertisement by ID
+ * @param {string|number} id - Advertisement ID
+ * @param {object|FormData} adData - Advertisement data to update
+ * @returns {Promise<{success, data}>} Response with updated advertisement
+ */
+export const updateAdvertisement = async (id, adData) => {
+  try {
+    console.log(`✏️ Updating advertisement ID: ${id}`);
+    const data = await authenticatedFetch(`/advertisements/${id}`, {
+      method: 'PUT',
+      body: adData,
+    });
+    console.log('✅ Advertisement updated successfully', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error updating advertisement:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete an advertisement by ID
+ * @param {string|number} id - Advertisement ID
+ * @returns {Promise<{success}>} Response confirming deletion
+ */
+export const deleteAdvertisement = async (id) => {
+  try {
+    console.log(`🗑️ Deleting advertisement ID: ${id}`);
+    const data = await authenticatedFetch(`/advertisements/${id}`, {
+      method: 'DELETE',
+    });
+    console.log('✅ Advertisement deleted successfully', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error deleting advertisement:', error);
     throw error;
   }
 };

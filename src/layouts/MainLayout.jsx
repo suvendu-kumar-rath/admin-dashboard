@@ -15,7 +15,7 @@ export const MainLayout = ({ children }) => {
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:ml-0">
+      <div className="flex-1 flex flex-col lg:ml-64">
         {/* Header */}
         <Header toggleSidebar={toggleSidebar} />
 

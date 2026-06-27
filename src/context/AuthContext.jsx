@@ -3,6 +3,15 @@ import { loginUser, setAuthToken, clearAuthTokens, getAuthToken } from "../servi
 
 const AuthContext = createContext();
 
+const normalizeUser = (userData, email) => {
+  const roleFromResponse = userData?.role;
+  const fallbackRole = email?.toLowerCase().includes("editor") ? "editor" : "admin";
+  return {
+    ...userData,
+    role: roleFromResponse || fallbackRole,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,17 +40,18 @@ export const AuthProvider = ({ children }) => {
       const response = await loginUser(email, password);
       // Handle both local and production API response formats
       const token = response.token || response.accessToken;
-      const userData = response.user;
+      const userData = response.user || response;
+      const normalizedUser = normalizeUser(userData, email);
 
       // Store tokens and user data
       setAuthToken(token);
       if (response.refreshToken) {
         sessionStorage.setItem("refreshToken", response.refreshToken);
       }
-      sessionStorage.setItem("user", JSON.stringify(userData));
+      sessionStorage.setItem("user", JSON.stringify(normalizedUser));
 
-      setUser(userData);
-      return response;
+      setUser(normalizedUser);
+      return { ...response, user: normalizedUser };
     } catch (err) {
       setError(err.message);
       throw err;
@@ -62,6 +72,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isAuthenticated: !!user,
+    isEditor: user?.role === "editor",
+    isAdmin: user?.role === "admin",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

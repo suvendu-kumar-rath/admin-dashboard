@@ -1,14 +1,26 @@
 import { useLocation, Link } from "react-router-dom";
 import { Menu, Edit, FileText, Megaphone } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
+  const { user } = useAuth();
 
   const menuItems = [
-    { label: "Editors", icon: Edit, href: "/editors" },
+    {
+      label: user?.role === "admin" ? "Admin Panel" : "Editor Panel",
+      icon: Edit,
+      href: user?.role === "admin" ? "/admin-panel" : "/editor-panel",
+      roles: ["editor", "admin"],
+    },
+    { label: "Editors", icon: Edit, href: "/editors", roles: ["editor", "admin"] },
     { label: "Posts", icon: FileText, href: "/posts" },
     { label: "Advertisements", icon: Megaphone, href: "/advertisements" },
   ];
+
+  const visibleItems = menuItems.filter(
+    (item) => !item.roles || item.roles.includes(user?.role)
+  );
 
   const isActive = (href) => location.pathname === href;
 
@@ -31,7 +43,9 @@ export const Sidebar = ({ isOpen, toggleSidebar }) => {
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-6 border-b border-gray-800">
-            <h1 className="text-2xl font-bold text-white">Admin</h1>
+            <h1 className="text-2xl font-bold text-white">
+              {user?.role === "editor" ? "Editor" : "Admin"}
+            </h1>
           </div>
 
           {/* Navigation */}
@@ -39,7 +53,7 @@ export const Sidebar = ({ isOpen, toggleSidebar }) => {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">
               Manage
             </p>
-            {menuItems.map((item) => (
+            {visibleItems.map((item) => (
               <Link
                 key={item.label}
                 to={item.href}

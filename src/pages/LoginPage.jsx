@@ -13,9 +13,16 @@ export const LoginPage = () => {
     e.preventDefault();
 
     try {
-      await login(email, password);
-      // Redirect to dashboard after successful login
-      navigate("/");
+      const response = await login(email, password);
+      const role = response.user?.role || (email.toLowerCase().includes("editor") ? "editor" : "admin");
+
+      if (role === "editor") {
+        navigate("/editor-panel");
+      } else if (role === "admin") {
+        navigate("/admin-panel");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       console.error("Login failed:", err);
     }
